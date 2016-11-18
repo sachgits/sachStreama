@@ -68,6 +68,58 @@ class UserController {
   }
 
   @Transactional
+  def signupUser() {
+    //maybe we need params here not so sure about that new user info
+    def data = request.JSON
+
+    //not sure who's userInstance at these case admin or new user
+    User userInstance = User.findOrCreateById(data.id)
+
+    if (userInstance == null) {
+      render status: NOT_FOUND
+      return
+    }
+
+    userInstance.properties = data
+
+    userInstance.validate()
+    if (userInstance.hasErrors()) {
+      render status: NOT_ACCEPTABLE
+      return
+    }
+
+
+    if (!userInstance.invitationSent && userInstance.enabled && userInstance.username != "admin") {
+      userInstance.uuid = randomUUID() as String
+
+      try {
+        sendMail {
+          to userInstance.username
+          subject "You have been invited!"
+          body(view: "/mail/userInvite", model: [user: userInstance])
+        }
+        log.debug("invitation email sent to $userInstance.username")
+      } catch (Exception e) {
+      }
+
+
+      userInstance.invitationSent = true
+    }
+
+    userInstance.save flush: true
+    UserRole.removeAll(userInstance)
+
+    data.authorities?.each { roleJson ->
+      Role role = Role.get(roleJson.id)
+      UserRole.create(userInstance, role)
+    }
+
+    redirect(controller: "invite", action: "index", params: [uuid: userInstance.getUuid()]);
+
+
+  }
+
+  @Transactional
   def saveAndInviteUser() {
 
     def data = request.JSON
