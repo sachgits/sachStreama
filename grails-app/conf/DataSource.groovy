@@ -29,9 +29,9 @@ environments {
           dialect = org.hibernate.dialect.MySQL5InnoDBDialect
 
           //DEV
-          url = "jdbc:mysql://localhost:3306/streama"
+          url = "jdbc:mysql://192.168.99.100:3306/streama"
           username = "root"
-          password = ""
+          password = "streama"
         }
     }
     production {
