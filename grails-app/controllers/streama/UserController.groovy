@@ -70,17 +70,30 @@ class UserController {
   @Transactional
   def signupUser() {
     //maybe we need params here not so sure about that new user info
-    def data = request.JSON
+    String password = params.password;
+    String comfirmPassword = params.repeatPassword;
 
+    String username = params.username;
+    String phonenumber = params.phoneNumber;
+
+    //later checks phonenumber pattern and username pattern
+    if(!password || !comfirmPassword || password != comfirmPassword || !username || !phonenumber || password.size() < 6)
+    {
+      render status: NOT_ACCEPTABLE
+      return
+    }
     //not sure who's userInstance at these case admin or new user
-    User userInstance = User.findOrCreateById(data.id)
+    User userInstance = User.findOrCreateByUsername(username); //nice way to start //check for more methods to initialize
 
     if (userInstance == null) {
       render status: NOT_FOUND
       return
     }
 
-    userInstance.properties = data
+    userInstance.username = username
+    userInstance.password = password
+    userInstance.phoneNumber = phonenumber
+    userInstance.enabled = true;
 
     userInstance.validate()
     if (userInstance.hasErrors()) {
@@ -89,33 +102,28 @@ class UserController {
     }
 
 
+    String uuid;
     if (!userInstance.invitationSent && userInstance.enabled && userInstance.username != "admin") {
-      userInstance.uuid = randomUUID() as String
+      uuid = randomUUID() as String
+      userInstance.uuid = uuid;
 
       try {
         sendMail {
           to userInstance.username
-          subject "You have been invited!"
+          subject "Welcome to Wiflix"
           body(view: "/mail/userInvite", model: [user: userInstance])
         }
         log.debug("invitation email sent to $userInstance.username")
       } catch (Exception e) {
       }
 
-
       userInstance.invitationSent = true
     }
 
-    userInstance.save flush: true
+    userInstance.save flush: true,failOnError: true
     UserRole.removeAll(userInstance)
 
-    data.authorities?.each { roleJson ->
-      Role role = Role.get(roleJson.id)
-      UserRole.create(userInstance, role)
-    }
-
-    redirect(controller: "invite", action: "index", params: [uuid: userInstance.getUuid()]);
-
+    redirect(uri: '/');
 
   }
 

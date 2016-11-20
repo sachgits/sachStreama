@@ -12,6 +12,7 @@ class User {
 
 	String username
 	String password
+  String phoneNumber
 
 	boolean enabled = false
 	boolean accountExpired
@@ -30,6 +31,7 @@ class User {
 	static constraints = {
 		username blank: false, unique: true
 		password blank: false
+    phoneNumber blank: false
 		dateCreated nullable: true
 		lastUpdated nullable: true
 	}
