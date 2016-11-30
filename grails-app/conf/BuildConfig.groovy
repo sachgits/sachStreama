@@ -72,6 +72,7 @@ grails.project.dependency.resolution = {
         compile ":mail:1.0.7"
         compile ":seofriendly-urls:1.0.2"
         compile ":angular-template-asset-pipeline:2.1.0"
+        compile ":cxf:2.1.1"
 
         // plugins needed at runtime but not for compilation
         runtime ":hibernate4:4.3.6.1" // or ":hibernate:3.6.10.18"

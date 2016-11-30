@@ -189,6 +189,7 @@ grails.plugin.springsecurity.controllerAnnotations.staticRules = [
 	'/dash/**':                         ['IS_AUTHENTICATED_REMEMBERED'],
 	'/tag.json':                        ['IS_AUTHENTICATED_REMEMBERED'],
 	'/tag/index':                       ['IS_AUTHENTICATED_REMEMBERED'],
+  '/payment/**':                      ['IS_AUTHENTICATED_REMEMBERED'],
 
 	'/genericVideo/**':                 ['ROLE_CONTENT_MANAGER'],
 	'/genre/**':                        ['ROLE_CONTENT_MANAGER'],
@@ -209,6 +210,7 @@ grails.plugin.springsecurity.controllerAnnotations.staticRules = [
 
   '/user/current':                    ['permitAll'],
   '/user/signupUser':                 ['permitAll'],
+  '/payment/test':                    ['permitAll'],
   '/invite/**':                       ['permitAll'],
 	'/assets/**':                       ['permitAll'],
 	'/**/js/**':                        ['permitAll'],
