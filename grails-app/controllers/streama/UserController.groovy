@@ -10,6 +10,7 @@ class UserController {
   def validationService
   def springSecurityService
   def passwordEncoder
+  def paymentService;
 
   static responseFormats = ['json', 'xml']
   static allowedMethods = [save: "POST", delete: "DELETE"]
@@ -121,8 +122,8 @@ class UserController {
     }
 
     userInstance.save flush: true,failOnError: true
-    UserRole.removeAll(userInstance)
-
+    UserRole.removeAll(userInstance);
+    paymentService.makeMpesaPayment(userInstance,80);
     redirect(uri: '/');
 
   }

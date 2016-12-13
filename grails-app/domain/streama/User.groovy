@@ -13,6 +13,8 @@ class User {
 	String username
 	String password
   String phoneNumber
+  long totalBalance
+  boolean subscribedStatus = false //is user currently subscribed to a plan or not
 
 	boolean enabled = false
 	boolean accountExpired
@@ -26,12 +28,12 @@ class User {
 
 	static transients = ['springSecurityService']
 
-  static hasMany = [favoriteGenres: Genre]
+  static hasMany = [favoriteGenres: Genre, subscriptions: UserSubscription]
 
 	static constraints = {
 		username blank: false, unique: true
 		password blank: false
-    phoneNumber blank: false
+    phoneNumber blank: false, unique:true
 		dateCreated nullable: true
 		lastUpdated nullable: true
 	}
@@ -49,7 +51,6 @@ class User {
 		if(!password){
 			password = randomUUID() as String
 		}
-
 		encodePassword()
 	}
 

@@ -4,8 +4,10 @@ import grails.converters.JSON
 
 import static org.springframework.http.HttpStatus.*
 import grails.transaction.Transactional
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @Transactional(readOnly = true)
+@PreAuthorize("hasRole('IS_AUTHENTICATED_REMEMBERED')")
 class VideoController {
 
   static responseFormats = ['json', 'xml']
@@ -88,6 +90,7 @@ class VideoController {
     respond videoInstance, [status: CREATED]
   }
 
+  @PreAuthorize("hasRole('ROLE_USER')")
   def show(Video videoInstance){
     JSON.use('player') {
       respond videoInstance, [status: OK]

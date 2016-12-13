@@ -1,14 +1,16 @@
 package streama
 
 import grails.transaction.Transactional
-
+import org.springframework.security.access.prepost.PreAuthorize;
 import static org.springframework.http.HttpStatus.*
 
 @Transactional
+@PreAuthorize("hasRole('IS_AUTHENTICATED_REMEMBERED')")
 class FileService {
 
   def allowedVideoFormats = ['.mp4', '.mkv', '.webm', '.ogg', '.m4v']
 
+  @PreAuthorize("hasRole('IS_AUTHENTICATED_REMEMBERED')")
   def serveVideo(request, response, rawFile, File file) {
     def rangeHeader = request.getHeader("Range")
     //bytes=391694320-

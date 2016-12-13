@@ -29,7 +29,7 @@ img{max-width:100%;}
 /*end reset*/
 html, body{
     font-size: 100%;
-    background: url(../images/banner1.jpg) no-repeat 0px 0px;
+    background: url(../images/Best-Movies-Of-2014-TechnoPcArea.jpg) no-repeat 0px 0px;
     background-size: cover;
     -webkit-background-size: cover;
     -moz-background-size: cover;
@@ -102,7 +102,7 @@ input[type="submit"],.agileits_copyright p a,input[type="reset"]{
 	float: left;
 }
 .agileits_main_grid_right{
-	background:url(../images/spices.jpg) no-repeat 0px 0px;
+	background:url(../images/download.jpg) no-repeat 0px 0px;
     background-size: cover;
     min-height:587px;
 	text-align:center;

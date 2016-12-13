@@ -1,3 +1,6 @@
+import javassist.NotFoundException
+import org.springframework.security.access.AccessDeniedException;
+
 class UrlMappings {
 
 	static mappings = {
@@ -8,8 +11,10 @@ class UrlMappings {
         }
 
         "/"(view:"/index")
-        "/setSettings"(view:'/setSettings')
-    
+        "403"(controller: "payment", action: "mpesa")
+        "500"(controller: "payment", action: "mpesa", exception: AccessDeniedException)
+        //"500"(controller: "payment", action: "mpesa", exception: NotFoundException)//to be changed later to security.acl.NotFoundException
+
         "500"(view:'/error')
 	}
 }

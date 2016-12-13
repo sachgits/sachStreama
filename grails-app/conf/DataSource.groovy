@@ -34,6 +34,9 @@ environments {
           password = "streama"
         }
     }
+    hibernate {
+      show_sql = true
+    }
     production {
         dataSource {
           dbCreate = "update"
