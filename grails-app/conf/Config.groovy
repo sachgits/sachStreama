@@ -11,7 +11,9 @@
 //    grails.config.locations << "file:" + System.properties["${appName}.config.location"]
 // }
 
-grails.config.locations = ['file:/streama-data/config.properties']
+grails.config.locations = ['file:/streama-data/config.properties',
+'classpath:conf/Quartz.properties'
+]
 
 grails.project.groupId = appName // change this to alter the default package name and Maven publishing destination
 
