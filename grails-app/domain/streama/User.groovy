@@ -33,7 +33,7 @@ class User {
 	static constraints = {
 		username blank: false, unique: true
 		password blank: false
-    phoneNumber blank: false, unique:true
+    phoneNumber nullable: false, unique:true
 		dateCreated nullable: true
 		lastUpdated nullable: true
 	}
