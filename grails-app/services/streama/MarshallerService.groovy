@@ -3,7 +3,6 @@ package streama
 
 import grails.converters.JSON
 import grails.transaction.Transactional
-import org.codehaus.groovy.grails.web.converters.configuration.DefaultConverterConfiguration
 
 @Transactional
 class MarshallerService {
@@ -45,12 +44,16 @@ class MarshallerService {
       returnArray['sha256Hex'] = file.sha256Hex
       returnArray['src'] = file.getSrc()
       returnArray['externalLink'] = file.externalLink
+      returnArray['localFile'] = file.localFile
       returnArray['originalFilename'] = file.originalFilename
       returnArray['extension'] = file.extension
       returnArray['contentType'] = file.contentType
       returnArray['size'] = file.size
       returnArray['dateCreated'] = file.dateCreated
       returnArray['quality'] = file.quality
+      returnArray['subtitleLabel'] = file.subtitleLabel
+      returnArray['subtitleSrcLang'] = file.subtitleSrcLang
+
 
       return returnArray;
     }
@@ -163,7 +166,7 @@ class MarshallerService {
     }
 
 
-    JSON.createNamedConfig('fullShow') { DefaultConverterConfiguration<JSON> cfg ->
+    JSON.createNamedConfig('fullShow') {  cfg ->
       cfg.registerObjectMarshaller(TvShow) { TvShow  tvShow ->
         def returnArray = [:]
 
@@ -181,8 +184,8 @@ class MarshallerService {
         returnArray['vote_count'] = tvShow.vote_count
         returnArray['imdb_id'] = tvShow.imdb_id
         returnArray['popularity'] = tvShow.popularity
-        returnArray['episodesWithFilesCount'] = tvShow.episodes.findAll{it.files}.size()
-        returnArray['episodesCount'] = tvShow.episodes.size()
+        returnArray['episodesWithFilesCount'] = tvShow.filteredEpisodes.findAll{it.files}.size()
+        returnArray['episodesCount'] = tvShow.filteredEpisodes.size()
         returnArray['manualInput'] = tvShow.manualInput
         returnArray['poster_image_src'] = tvShow.poster_image?.src
         returnArray['genre'] = tvShow.genre
@@ -192,7 +195,7 @@ class MarshallerService {
     }
 
 
-    JSON.createNamedConfig('dashViewingStatus') { DefaultConverterConfiguration<JSON> cfg ->
+    JSON.createNamedConfig('dashViewingStatus') {  cfg ->
       cfg.registerObjectMarshaller(ViewingStatus) { ViewingStatus  viewingStatus ->
         def returnArray = [:]
 
@@ -249,7 +252,7 @@ class MarshallerService {
 
 
 
-    JSON.createNamedConfig('firstEpisode') { DefaultConverterConfiguration<JSON> cfg ->
+    JSON.createNamedConfig('firstEpisode') {  cfg ->
       cfg.registerObjectMarshaller(Episode) { Episode  episode ->
         def returnArray = [:]
 
@@ -291,7 +294,7 @@ class MarshallerService {
       }
     }
 
-    JSON.createNamedConfig('dashMovies') { DefaultConverterConfiguration<JSON> cfg ->
+    JSON.createNamedConfig('dashMovies') {  cfg ->
       cfg.registerObjectMarshaller(Movie) { Movie  movie ->
         def returnArray = [:]
 
@@ -320,7 +323,7 @@ class MarshallerService {
       }
     }
 
-    JSON.createNamedConfig('dashTvShow') { DefaultConverterConfiguration<JSON> cfg ->
+    JSON.createNamedConfig('dashTvShow') {  cfg ->
       cfg.registerObjectMarshaller(TvShow){ TvShow tvShow ->
         def returnArray = [:]
 
@@ -348,7 +351,7 @@ class MarshallerService {
       }
     }
 
-    JSON.createNamedConfig('dashGenericVideo') { DefaultConverterConfiguration<JSON> cfg ->
+    JSON.createNamedConfig('dashGenericVideo') {  cfg ->
       cfg.registerObjectMarshaller(GenericVideo){ GenericVideo genericVideo ->
         def returnArray = [:]
 
@@ -380,7 +383,7 @@ class MarshallerService {
     }
 
 
-    JSON.createNamedConfig('fullMovie') { DefaultConverterConfiguration<JSON> cfg ->
+    JSON.createNamedConfig('fullMovie') {  cfg ->
       cfg.registerObjectMarshaller(Movie) { Movie  movie ->
         def returnArray = [:]
 
@@ -423,7 +426,7 @@ class MarshallerService {
     }
 
 
-    JSON.createNamedConfig('adminFileManager') { DefaultConverterConfiguration<JSON> cfg ->
+    JSON.createNamedConfig('adminFileManager') {  cfg ->
       cfg.registerObjectMarshaller(File) { File  file ->
         def returnArray = [:]
 
@@ -466,7 +469,7 @@ class MarshallerService {
     }
 
 
-    JSON.createNamedConfig('episodesForTvShow') { DefaultConverterConfiguration<JSON> cfg ->
+    JSON.createNamedConfig('episodesForTvShow') {  cfg ->
       cfg.registerObjectMarshaller(Episode) { Episode  episode ->
         def returnArray = [:]
 
@@ -485,7 +488,7 @@ class MarshallerService {
         return returnArray;
       }
     }
-    JSON.createNamedConfig('adminEpisodesForTvShow') { DefaultConverterConfiguration<JSON> cfg ->
+    JSON.createNamedConfig('adminEpisodesForTvShow') {  cfg ->
       cfg.registerObjectMarshaller(Episode) { Episode  episode ->
         def returnArray = [:]
 
@@ -494,7 +497,8 @@ class MarshallerService {
         returnArray['name'] = episode.name
         returnArray['season_number'] = episode.season_number
         returnArray['episode_number'] = episode.episode_number
-        returnArray['files'] = episode.files
+        returnArray['files'] = episode.videoFiles?.collect{it.simpleInstance}
+        returnArray['subtitles'] = episode.subtitles?.collect{it.simpleInstance}
         returnArray['still_path'] = episode.still_path
         returnArray['intro_start'] = episode.intro_start
         returnArray['intro_end'] = episode.intro_end
@@ -508,7 +512,7 @@ class MarshallerService {
       }
     }
 
-    JSON.createNamedConfig('admin') { DefaultConverterConfiguration<JSON> cfg ->
+    JSON.createNamedConfig('admin') {  cfg ->
 
       cfg.registerObjectMarshaller(GenericVideo) { GenericVideo  genericVideo ->
         def returnArray = [:]
@@ -542,7 +546,7 @@ class MarshallerService {
     }
 
 
-    JSON.createNamedConfig('player') { DefaultConverterConfiguration<JSON> cfg ->
+    JSON.createNamedConfig('player') {  cfg ->
       cfg.registerObjectMarshaller(Video) {  Video video ->
         def returnArray = [:]
 
@@ -595,6 +599,8 @@ class MarshallerService {
           returnArray['release_date'] = video.release_date
           returnArray['backdrop_path'] = video.backdrop_path
           returnArray['poster_path'] = video.poster_path
+          returnArray['trailerKey'] = video.trailerKey
+
         }
         if(video instanceof GenericVideo){
           returnArray['title'] = video.title

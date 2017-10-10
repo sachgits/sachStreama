@@ -36,10 +36,8 @@ class MovieController {
     respond movieInstance, [status: CREATED]
   }
 
-  def show(Movie movieInstance) {
-    JSON.use('fullMovie') {
-      respond movieInstance, [status: OK]
-    }
+  def show(Movie movie) {
+    respond movie, [status: OK]
   }
 
   @Transactional
@@ -54,4 +52,11 @@ class MovieController {
     movieInstance.save failOnError: true, flush: true
     render status: NO_CONTENT
   }
+  def getsimilar(){
+    def movieId = params.id
+    Movie movie = Movie.get(movieId)
+    def similarMovies = movie.getSimilarMovies()
+    render(similarMovies.results as JSON)
+  }
+
 }

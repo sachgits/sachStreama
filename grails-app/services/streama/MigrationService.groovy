@@ -7,6 +7,17 @@ class MigrationService {
 
   def theMovieDbService
 
+  def setTheMovieDBKey() {
+    def setting = Settings.list()
+
+    setting.each {
+      if (it.id == 2) {
+        it.required = false
+        it.save(failOnError: true)
+      }
+    }
+  }
+
   def setDefaultDeletedFlag() {
     def videos = Video.findAllByDeletedIsNull()
 
@@ -100,6 +111,26 @@ class MigrationService {
       }
 
       tvShow.save(failOnError: true)
+    }
+  }
+
+  def fixLogoValue(){
+    Settings setting = Settings.findByName('logo')
+    if(!setting.value){
+      setting.value = '/assets/logo.png'
+      setting.save()
+    }
+
+    if(!setting.defaultValue){
+      setting.defaultValue = '/assets/logo.png'
+      setting.save()
+    }
+  }
+  def urlvalidationFix(){
+    Settings setting = Settings.findBySettingsKey('Base URL')
+    if(setting.validationRequired){
+        setting.validationRequired = false
+        setting.save()
     }
   }
 }

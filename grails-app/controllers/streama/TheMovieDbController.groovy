@@ -24,7 +24,7 @@ class TheMovieDbController {
 
     def query = URLEncoder.encode(name, "UTF-8")
 
-    def JsonContent = new URL(theMovieDbService.BASE_URL + '/search/' + type + '?query=' + query + '&api_key=' + theMovieDbService.API_KEY).text
+    def JsonContent = new URL(theMovieDbService.BASE_URL + '/search/' + type + '?query=' + query + '&' + theMovieDbService.API_PARAMS).text
     def json = new JsonSlurper().parseText(JsonContent)
 
     def results = json?.results
@@ -34,6 +34,31 @@ class TheMovieDbController {
     }
 
     respond json?.results
+  }
+
+  def hasKey() {
+    def resultObj = [key: theMovieDbService.API_KEY!=null]
+    respond resultObj
+  }
+
+  def seasonNumberForShow(params) {
+    String apiId = params.apiId
+    def result = []
+
+    if (!apiId) {
+      return
+    }
+
+    def JsonContent = new URL(theMovieDbService.BASE_URL + '/tv/' + apiId + '?' + theMovieDbService.API_PARAMS).text
+    def json = new JsonSlurper().parseText(JsonContent)
+
+    def seasons = json?.seasons
+
+    seasons?.each{ seasonData ->
+      result.add(seasonData.season_number)
+    }
+
+    respond result
   }
 
   def seasonForShow() {
@@ -65,7 +90,7 @@ class TheMovieDbController {
       return result
     }
 
-    def JsonContent = new URL(theMovieDbService.BASE_URL + '/tv/' + apiId + '/season/' + season + '?api_key=' + theMovieDbService.API_KEY).text
+    def JsonContent = new URL(theMovieDbService.BASE_URL + '/tv/' + apiId + '/season/' + season + '?' + theMovieDbService.API_PARAMS).text
     def json = new JsonSlurper().parseText(JsonContent)
 
     def episodes = json?.episodes

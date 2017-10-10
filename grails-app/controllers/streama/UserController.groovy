@@ -1,5 +1,7 @@
 package streama
 
+import grails.transaction.Transactional
+
 import static java.util.UUID.randomUUID
 import static org.springframework.http.HttpStatus.*
 import grails.transaction.Transactional
@@ -8,6 +10,8 @@ import grails.transaction.Transactional
 class UserController {
 
   def validationService
+  def settingsService
+  def mailService
   def springSecurityService
   def passwordEncoder
 
@@ -47,21 +51,28 @@ class UserController {
       return
     }
 
-    userInstance.deleted = true
-    userInstance.username = userInstance.username + (randomUUID() as String)
-    userInstance.accountExpired = true
+    /** the anonymous user is different, and disabled the anonymous_access property **/
+    if (userInstance.username == "anonymous") {
+      settingsService.disableAnonymousUser()
+      settingsService.changeAnonymousAccess("false")
+    } else {
+      userInstance.deleted = true
+      userInstance.username = userInstance.username + (randomUUID() as String)
+      userInstance.accountExpired = true
 
-    userInstance.save flush: true, failOnError: true
+      userInstance.save flush: true, failOnError: true
+    }
 
     render status: NO_CONTENT
   }
 
   def checkAvailability() {
     def username = params.username
+    def isInvite = params.isInvite
     def result = [:]
 
     if (User.findByUsername(username)) {
-      result.error = "User with that E-Mail-Address already exists."
+      result.error = (isInvite == "true") ? "User with that E-Mail-Address already exists." : "Username already exists."
     }
 
     respond result
@@ -72,7 +83,7 @@ class UserController {
 
     def data = request.JSON
 
-    User userInstance = User.findOrCreateById(data.id)
+    User userInstance = data.id ? User.get(data.id) : new User()
 
     if (userInstance == null) {
       render status: NOT_FOUND
@@ -88,11 +99,11 @@ class UserController {
     }
 
 
-    if (!userInstance.invitationSent && userInstance.enabled && userInstance.username != "admin") {
+    if (!userInstance.invitationSent && userInstance.enabled && userInstance.username != "admin" && userInstance.username != "anonymous") {
       userInstance.uuid = randomUUID() as String
 
       try {
-        sendMail {
+        mailService.sendMail {
           to userInstance.username
           subject "You have been invited!"
           body(view: "/mail/userInvite", model: [user: userInstance])
@@ -105,6 +116,13 @@ class UserController {
       userInstance.invitationSent = true
     }
 
+    if (userInstance.isDirty('username') && userInstance.getPersistentValue('username') == "anonymous") {
+      settingsService.changeAnonymousAccess("false")
+    }
+
+    if (userInstance.username == "anonymous") {
+      settingsService.changeAnonymousAccess(userInstance.enabled.toString())
+    }
 
     userInstance.save flush: true
 
@@ -118,9 +136,46 @@ class UserController {
     respond userInstance, [status: CREATED]
   }
 
+  @Transactional
+  def saveAndCreateUser() {
+
+    def data = request.JSON
+
+    User userInstance = data.id ? User.get(data.id) : new User()
+
+    if (userInstance == null) {
+      render status: NOT_FOUND
+      return
+    }
+
+    userInstance.properties = data
+
+    userInstance.validate()
+    if (userInstance.hasErrors()) {
+      render status: NOT_ACCEPTABLE
+      return
+    }
+
+    userInstance.save flush: true
+
+    UserRole.removeAll(userInstance)
+
+    data.authorities?.each { roleJson ->
+      Role role = Role.get(roleJson.id)
+      UserRole.create(userInstance, role)
+    }
+
+    respond userInstance, [status: CREATED]
+  }
 
   def current() {
-    respond springSecurityService.currentUser, [status: OK]
+    User user = springSecurityService.currentUser
+    if(user){
+      return [user: user]
+    }
+
+    response.setStatus(UNAUTHORIZED.value())
+    render 'Not logged in'
   }
 
   @Transactional

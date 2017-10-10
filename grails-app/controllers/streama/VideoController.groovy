@@ -2,6 +2,9 @@ package streama
 
 import grails.converters.JSON
 
+import java.nio.file.Files
+import java.nio.file.Paths
+
 import static org.springframework.http.HttpStatus.*
 import grails.transaction.Transactional
 
@@ -14,7 +17,6 @@ class VideoController {
   def thetvdbService
   def uploadService
   def springSecurityService
-  def mediaService
   def fileService
   def videoService
 
@@ -90,7 +92,7 @@ class VideoController {
 
   def show(Video videoInstance){
     JSON.use('player') {
-      respond videoInstance, [status: OK]
+      render (videoInstance as JSON)
     }
   }
 
@@ -115,10 +117,16 @@ class VideoController {
     }
 
     def file = uploadService.upload(request)
-    videoInstance.addToFiles(file)
-    videoInstance.save flush: true, failOnError: true
+    
+    if(file!=null){
+    	videoInstance.addToFiles(file)
+    	videoInstance.save flush: true, failOnError: true
+    	respond file
+    }else{
+    	render status: 415
+    }
 
-    respond file
+    
 
   }
 
@@ -175,14 +183,30 @@ class VideoController {
 
   }
 
+  // last occurrence of mp4|webm|ogg|srt|vtt
+  def videoExtensionRegex = ~/(?:.(?![^a-zA-Z0-9]))(mp4|webm|ogg|srt|vtt)/
+
   @Transactional
   def addExternalUrl(Video videoInstance){
     File file = File.findOrCreateByExternalLink(params.externalUrl)
     file.originalFilename = params.externalUrl
-    def extensionIndex = params.externalUrl.lastIndexOf('.')
-    file.extension = params.externalUrl[extensionIndex..-1];
+    def matcher = params.externalUrl =~ videoExtensionRegex
+    if (matcher.getCount()) {
+      file.extension = matcher[0][0]
+    }
     file.save()
     videoInstance.addToFiles(file)
     respond file
+  }
+
+  @Transactional
+  def addLocalFile(Video videoInstance){
+    def result = videoService.addLocalFile(videoInstance, params)
+    if(result instanceof Map && result.error){
+      response.setStatus(result.statusCode)
+      respond result
+      return
+    }
+    respond result
   }
 }

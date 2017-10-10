@@ -1,6 +1,14 @@
 package streama
 
 import grails.converters.JSON
+import grails.transaction.Transactional
+import grails.config.Config
+
+import groovy.json.JsonSlurper
+
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.util.regex.Pattern
 
 import static org.springframework.http.HttpStatus.*
 
@@ -9,6 +17,9 @@ class FileController {
   def uploadService
   def fileService
   def srt2vttService
+  def springSecurityService
+  def theMovieDbService
+  def bulkCreateService
 
   def index(){
     def filter = params.filter
@@ -35,10 +46,9 @@ class FileController {
     }
 
     JSON.use('adminFileManager'){
-      respond responseObj
+      render (responseObj as JSON)
     }
   }
-
 
   def findUnusedFiles(){
     def files = []
@@ -65,7 +75,6 @@ class FileController {
     return files
   }
 
-
   def removeFileFromDisk(File file){
     def path = params.path
 
@@ -75,12 +84,46 @@ class FileController {
     }
 
     if(file){
-      fileService.fullyRemoveFile(file)
-    } else if(path){
+      Map result = fileService.fullyRemoveFile(file)
+      if(result.error){
+        response.setStatus(result.statusCode)
+        render (result as JSON)
+        return
+      }else{
+        respond status: OK
+      }
+    }
+
+
+    else if(path){
       java.io.File rawFile = new java.io.File(path)
       rawFile.delete()
+      respond status: OK
     }
-    respond status: NO_CONTENT
+  }
+
+  def removeMultipleFilesFromDisk() {
+    def idBulk = params.list('id').collect({it.toLong()})
+    def result = [
+        successes: [],
+        errors: []
+    ]
+    idBulk.each { id ->
+      def file = File.get(id)
+      def individualResult =fileService.fullyRemoveFile(file)
+
+      if(individualResult.error){
+        result.errors.add(id)
+      }else{
+        result.successes.add(id)
+      }
+    }
+    if(result.successes.size() > 0){
+      response.setStatus(OK.value())
+    }else{
+      response.setStatus(NOT_ACCEPTABLE.value())
+    }
+    render (result as JSON)
   }
 
   def cleanUpFiles(){
@@ -101,21 +144,36 @@ class FileController {
   }
 
   def serve() {
-
     if (!params.id) {
       return;
     }
 
     def file = File.get(params.getInt('id'))
     if(!file){
-      render status: NOT_FOUND
+      response.setStatus(BAD_REQUEST.value())
+      render ([messageCode: 'FILE_IN_DB_NOT_FOUND'] as JSON)
+      log.debug('FILE_IN_DB_NOT_FOUND')
       return
     }
 
-    def filePath = uploadService.getPath(file.sha256Hex, file.extension)
+    if(!file.isPublic && !springSecurityService.isLoggedIn()){
+      response.setStatus(UNAUTHORIZED.value())
+      render ([messageCode: 'UNAUTHORIZED'] as JSON)
+      log.debug('UNAUTHORIZED')
+      return
+    }
+
+    def filePath = uploadService.getPath(file)
 
     if(!filePath){
-      render status: NOT_FOUND
+      response.setStatus(NOT_ACCEPTABLE.value())
+      render ([messageCode: 'FILE_IN_FS_NOT_FOUND', data: file.sha256Hex] as JSON)
+      log.debug('FILE_IN_FS_NOT_FOUND')
+      return
+    }
+
+    if(request.method == 'HEAD'){
+      render(status: OK)
       return
     }
 
@@ -125,6 +183,7 @@ class FileController {
 
     if(fileService.allowedVideoFormats.contains(file.extension)){
       fileService.serveVideo(request, response, rawFile, file)
+      return null
     }else if(file.extension == '.srt'){
       def vttResult = srt2vttService.convert(rawFile)
       render ( file: vttResult.getBytes('utf-8'), contentType: file.contentType, fileName: file.originalFilename.replace('.srt', '.vtt'))
@@ -135,13 +194,13 @@ class FileController {
   }
 
   def upload(){
-    def file = uploadService.upload(request)
-    respond file
+    def file = uploadService.upload(request, params)
+    if(file!=null){
+    	respond file
+    }else{
+    	render status: 415
+    }
   }
-
-
-
-
 
   def deletedUnusedFilesOnHardDrive(){
     uploadService.storagePaths.each{path ->
@@ -160,4 +219,104 @@ class FileController {
 
     }
   }
+
+  def localFiles(String path) {
+    def result = [:]
+    if (!uploadService.localPath) {
+      result.code = "LocalFilesNotEnabled"
+      result.message = "The Local Video Files setting is not configured."
+      response.setStatus(NOT_ACCEPTABLE.value)
+      respond result
+      return
+    }
+
+    def localPath = Paths.get(uploadService.localPath)
+    def dirPath
+    if(path.contains(uploadService.localPath)){
+      dirPath = localPath.resolve(path).toAbsolutePath()
+    }else{
+      dirPath = localPath.resolve( uploadService.localPath + path).toAbsolutePath()
+    }
+
+    if (!dirPath.startsWith(localPath)) {
+      result.code = "FileNotInLocalPath"
+      result.message = "The video file must be contained in the Local Video Files setting."
+      response.setStatus(NOT_ACCEPTABLE.value)
+      respond result
+      return
+    }
+
+    if(Files.notExists(dirPath)){
+      dirPath = localPath.resolve( uploadService.localPath).toAbsolutePath()
+    }
+
+    if(Files.notExists(dirPath)){
+      result.code = "DirectoryNotFound"
+      result.message = "The Local Files Directory could not be found."
+      response.setStatus(NOT_ACCEPTABLE.value)
+      respond result
+      return
+    }
+
+    def response = []
+    Files.list(dirPath).each { file ->
+      if(Files.isHidden(file)){
+        return
+      }
+      response << [
+        name: file.getFileName().toString(),
+        path: file.toAbsolutePath().toString(),
+        directory: Files.isDirectory(file)
+      ]
+    }
+
+    render response as JSON
+  }
+
+
+  def matchMetaDataFromFiles(){
+//      Shows:
+//      American.Crime.Story.S01E02.720p.BluRay.x264.ShAaNiG.mkv
+//      master.chef.us.603.hdtv-lol.mp4
+//      Silicon.Valley.S02E01.HDTV.x264-ASAP.mp4
+//      Vikings_S03E06_HDTV_x264-KILLERS.srt
+//      Seinfeld.S01E03.The.Robbery.720p.HULU.WEBRip.AAC2.0.H.264-NTb.mkv
+
+//      Movies:
+//      Pulp.Fiction.(1994).avi
+//      The_Avengers_:_Age_of_Ultron_(2015).mp4
+//      Green.Lantern.(2011).H.264.mkv
+
+    def files = request.JSON.files
+    def result = bulkCreateService.matchMetaDataFromFiles(files)
+
+    render (result as JSON)
+  }
+
+  def bulkAddMediaFromFile(){
+    def files = request.JSON.files
+    def result = bulkCreateService.bulkAddMediaFromFile(files)
+
+    render (result as JSON)
+  }
+
+
+  def save(File file) {
+
+    if (file == null) {
+      render status: NOT_FOUND
+      return
+    }
+
+    file.validate()
+
+    if (file.hasErrors()) {
+      render status: NOT_ACCEPTABLE
+      return
+    }
+
+    file.save flush: true
+    respond file, [status: CREATED]
+  }
+
 }

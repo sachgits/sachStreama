@@ -1,7 +1,8 @@
-FROM java:8-jdk
+FROM java:8-jre
 
-WORKDIR /usr/lib/java
+ADD build/libs/*.war /app/streama.war
 
+<<<<<<< HEAD
 ENV GRAILS_VERSION 2.4.4
 ENV GRADLE_VERSION 3.1
 
@@ -24,12 +25,10 @@ RUN ln -s gradle-$GRADLE_VERSION gradle
 RUN mkdir /app
 COPY . /app
 VOLUME ~/Documents/sachStreama /app
+=======
+>>>>>>> master1
 WORKDIR /app
 
-RUN grails compile
-
 EXPOSE 8080
-
-ENTRYPOINT ["grails"]
-
-CMD ["-Dgrails.env=docker", "run-app"]
+ENTRYPOINT ["java"]
+CMD ["-Dgrails.env=test", "-jar", "streama.war"]

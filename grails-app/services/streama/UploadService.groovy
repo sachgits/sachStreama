@@ -2,13 +2,13 @@ package streama
 
 import grails.transaction.Transactional
 import org.apache.commons.codec.digest.DigestUtils
-import org.springframework.web.multipart.commons.CommonsMultipartFile
 import org.springframework.web.multipart.support.DefaultMultipartHttpServletRequest
 
 @Transactional
 class UploadService {
 
   def settingsService
+  def grailsApplication
 
   def getStoragePaths(){
     def storages = []
@@ -16,39 +16,57 @@ class UploadService {
     if(storage1){
       storages.add(storage1)
     }
-    def storage2 = Settings.findBySettingsKey('Second Directory')?.value
-    if(storage2){
-      storages.add(storage2)
-    }
 
+    def secondDirectory = Settings.findBySettingsKey('Second Directory')?.value
+    def additionalReadStorages = secondDirectory?.split(/\|/)
+
+    if(additionalReadStorages){
+      storages.addAll(additionalReadStorages)
+    }
     return storages
   }
 
-  def upload(DefaultMultipartHttpServletRequest request) {
+  def getLocalPath(){
+    return Settings.findBySettingsKey('Local Video Files')?.value
+  }
 
-    CommonsMultipartFile rawFile = request.getFile('file')
+  def upload(request, params = [:]) {
+    log.debug(params)
+    def rawFile = request.getFile('file')
+    def mimetype = rawFile.contentType
     def sha256Hex = DigestUtils.sha256Hex(rawFile.inputStream)
     def index = rawFile.originalFilename.lastIndexOf('.')
     String extension = rawFile.originalFilename[index..-1];
     def originalFilenameNoExt = rawFile.originalFilename[0..(index-1)]
     def contentType = rawFile.contentType;
+	
+	def allowedTypes = grailsApplication.config.streama.uploadtypes
+
+	//If the file upload content type isn't in the upload types array, fail the upload.
+	if(!allowedTypes.contains(mimetype)){
+		return null
+	}
 
     java.io.File targetFile = new java.io.File(this.dir.uploadDir, sha256Hex+extension)
     rawFile.transferTo(targetFile)
 
-    File file = createFileFromUpload(sha256Hex, rawFile, extension, originalFilenameNoExt + extension, contentType)
-
+    File file = createFileFromUpload(sha256Hex, rawFile, extension, originalFilenameNoExt + extension, contentType, params)
+	
+	log.debug(file)
     return file
   }
 
 
-  def createFileFromUpload(sha256Hex, rawFile, extension, originalFilename, contentType){
+  def createFileFromUpload(sha256Hex, rawFile, extension, originalFilename, contentType, params = [:]){
     def fileInstance = new File(sha256Hex:sha256Hex)
     fileInstance.originalFilename = originalFilename
     fileInstance.contentType = contentType
     fileInstance.extension = extension
     fileInstance.size = rawFile.size
     fileInstance.name = rawFile.name
+    if(params?.isPublic == 'true'){
+      fileInstance.isPublic = true
+    }
     fileInstance.save(failOnError: true)
 
 
@@ -66,7 +84,13 @@ class UploadService {
 
   }
 
-  String getPath(String sha256Hex, extension){
+  String getPath(File file){
+    if (file.localFile) {
+      // A local file is defined
+      return new java.io.File(file.localFile)
+    }
+
+    // The file is stored in the upload directory
     def foundVideoPath
 
     storagePaths.each{storagePath ->
@@ -74,7 +98,7 @@ class UploadService {
         return
       }
       def uploadDir = new java.io.File(storagePath + '/upload')
-      def filePath = "$uploadDir/$sha256Hex" + extension
+      def filePath = "$uploadDir/$file.sha256Hex" + file.extension
       if((new java.io.File(filePath)).exists()){
         foundVideoPath = filePath
       }
@@ -84,8 +108,8 @@ class UploadService {
   }
 
   def getFileSrc(File file){
-    return settingsService.baseUrl  + "/file/serve/" + file.id + file.extension
+    def baseUrl = settingsService.baseUrl
+    baseUrl = baseUrl.replaceAll('/$', '')
+    return baseUrl  + "/file/serve/" + file.id + file.extension
   }
-
-
 }

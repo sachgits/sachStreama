@@ -24,6 +24,7 @@ class DefaultDataService {
         [
             username: 'admin',
             password: 'admin',
+            fullName: 'Administrator',
             enabled: true,
             roles: [Role.findByAuthority("ROLE_ADMIN"), Role.findByAuthority("ROLE_CONTENT_MANAGER")]
         ]
@@ -60,22 +61,78 @@ class DefaultDataService {
             required: true
         ],
         [
+          settingsKey: 'TheMovieDB API language',
+          description: "Language support on TMDb is based on the language query parameter you send along with your API key. " +
+            "For example, you could type es-ES for getting responses in spanish. Be careful with your country, es-ES is not the same as es-MX. " +
+            "More information at https://en.wikipedia.org/wiki/IETF_language_tag",
+          settingsType: 'string',
+          required: false,
+          value: 'en'
+        ],
+        [
             settingsKey: 'Base URL',
             value: 'http://localhost:8080',
             description: 'The Base-URL is used for the videos and the link in the invitation-email.',
             settingsType: 'string',
-            required: true
+            required: true,
+            validationRequired: false
         ],
         [
             settingsKey: 'Second Directory',
-            description: 'This directory is not used for uploading of new files, only for playback of existing files. This can be useful if you want to spread your video files over two directories, for instance by mounting a second drive.',
+            description: 'Enter one or more directories, split with |. Example: /data/streama|/mnt/streama. These directories are only used for reading previously uploaded files. This can be useful if you want to spread your video files over two or more directories, for instance by mounting a second or third drive and rsyncing everything over.',
+            settingsType: 'string',
+            required: false
+        ],
+        [
+            settingsKey: 'Local Video Files',
+            description: 'If you already have a directory with your videos, put it here and you will be able to choose them when creating movies or TV shows.',
             settingsType: 'string',
             required: false
         ],
         [
             settingsKey: 'First Time Login Info',
             description: 'Should the First-Time login info (admin/admin) be shown in the login screen?',
-            settingsType: 'boolean'
+            settingsType: 'boolean',
+            value: 'true'
+        ],
+        [
+            settingsKey: 'Allow anonymous access',
+            name: 'anonymous_access',
+            description: 'Allow to reproduce videos without login in the application',
+            settingsType: 'boolean',
+            value: 'false'
+        ],
+        [
+            settingsKey: 'Show Version Number',
+            name: 'show_version_num',
+            description: 'Should the Streama version number be shown in the header of the application',
+            settingsType: 'boolean',
+            value: 'true'
+        ],
+        [
+            settingsKey: 'Logo',
+            name: 'logo',
+            description: 'Upload your custom Streama Logo here',
+            settingsType: 'fileUpload',
+            value: '/assets/logo.png',
+            defaultValue: '/assets/logo.png'
+        ],
+        [
+            settingsKey: 'Favicon',
+            name: 'favicon',
+            description: 'Upload your custom Favicon here. For most compatibility, use 16x16 .ico file',
+            settingsType: 'fileUpload',
+            value: '/assets/favicon.ico',
+            defaultValue: '/assets/favicon.ico'
+        ],
+        [
+            settingsKey: 'Streama title',
+            name: 'title',
+            description: 'Change Name of Application',
+            settingsType: 'string',
+            value: 'Streama',
+            required: true,
+            validationRequired: false
         ],
 //        [
 //            settingsKey: 'Remove Source After Convert',
@@ -89,6 +146,12 @@ class DefaultDataService {
       if(!Settings.findBySettingsKey(settingData.settingsKey)){
         def setting = new Settings(settingData)
         setting.save flush: true, failOnError: true
+      }
+
+      Settings changedSetting = Settings.findBySettingsKeyAndDescriptionNotEqual(settingData.settingsKey, settingData.description)
+      if(changedSetting){
+        changedSetting.description = settingData.description
+        changedSetting.save flush: true, failOnError: true
       }
     }
   }
